@@ -1,0 +1,13 @@
+[Unit]
+Description=fsdapi Service
+After=fsd.service
+
+[Service]
+Restart=always
+RestartSec=30
+Type=simple
+WorkingDirectory=/path/to/fsd/root/folder
+ExecStart=/usr/bin/gunicorn -w 4 -b 0.0.0.0:29343 fsdapi:app
+
+[Install]
+WantedBy=multi-user.target
