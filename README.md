@@ -7,7 +7,7 @@ A simple python script for modify & vaild fsd's cert.txt (different servers)
 Install requirements package from requirements.txt (`pip install -r requirements.txt`)  
 Put the python files to fsd root folder  
 Edit `fsdapi.py` and modify token yourself  
-And run fsdapi.py  
+And run `gunicorn -w 4 -b 0.0.0.0:port fsdapi:app`  
 (A systemd manager plan is ready.See README.systemd.md)  
 
 # Demo usage
