@@ -186,11 +186,12 @@
 
     $query = $post;
     $query['token'] = $token;
-    $query['name'] = $query['acc'].$query['num'];
+    $query['callsign'] = $query['acc'].$query['num'];
     unset($query['acc']);
     unset($query['num']);
     $query = json_encode($query);
     # How to configure this please see Tencent captcha docs
+    # Or annotate line 195-208
     $captcha = Array('Action'=>'DescribeCaptchaResult', 'AppSecretKey'=>'', 'CaptchaAppId'=>'', 'CaptchaType'=>'9', 'Nonce'=>rand(), 'Randstr'=>$post['captStr'], 'SecretId'=>'', 'Ticket'=>$post['captTicket'], 'Timestamp'=>time(), 'UserIp'=>$_SERVER['REMOTE_ADDR'], 'Version'=>'2019-07-22');
     $signStr = "POSTcaptcha.tencentcloudapi.com/?";
     foreach ( $captcha as $key => $value ) {
@@ -205,23 +206,14 @@
         alert("请重新进行人机验证");
         return;
     }
-    $responsee = getresponse("http://yourserver:29343/api/query", $query, "application/json");
-    $query_result = json_decode($responsee, true);
-    if ($query_result != null) {
-        if ($query_result['exist']) {
-            alert("呼号已存在");
-            return;
-        }
-    } else {
-        alert($responsee);
-        return;
-    }
 
     $create_result = json_decode(getresponse("http://youserver:29343/api/create", $query, "application/json"), true);
     if ($create_result != null) {
-        if ($create_result['status'] = (int)"200") {
+        if ($create_result['state'] == "0") {
             alert("注册成功");
             return;
+        } else {
+            alert("呼号已存在");
         }
     } else {
         alert("注册失败(2)");

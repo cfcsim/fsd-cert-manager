@@ -1,78 +1,121 @@
-import re
+import os, re, time
+
+if not os.path.isfile('cert.txt'):
+    raise FileNotFoundError('There is not cert.txt, please check')
 
 class logger:
-    def info(info):
+    def info(msg):
+        print(msg)
+
+lock = False # Processing lock
+
+'''
+Style of API: RESTful API
+'state' param explain:
+    1: OK
+    2: User already exist
+    3: User doesn't exist
+    4: Key wrong
+'''
+
+# Build line or convert line to list
+def linebuild(obj):
+    if isinstance(obj, list):
+        return obj[0]+' '+obj[1]+' '+str(obj[2])
+    elif isinstance(obj, str):
+        return obj.split()
+    return False
+
+# Search line by callsign
+def search(certfile, callsign):
+    lines = certfile.readlines()
+    for line in lines:
+        if line.split()[0] == callsign:
+            return line
+    return False
+
+# /userinfo?callsign=
+def query(callsign):
+    global lock
+    while lock:
         pass
-
-def search(file, word):
-    while True:
-        text = file.readline()
-        if text.split()[0] == word:
-            return text
-            break
-        
-def query(name):
+    lock = True
     with open('cert.txt', 'r') as certfile:
-        cert = certfile.read()
-        tuple = re.search('\n'+name, cert)
-        if tuple == None:
-            logger.info("Queried: "+name+", not exist")
-            return { "status": 200, "exist": False }
-    with open('cert.txt', 'r') as certfile:
-        authty = search(certfile, name).split()[2]
-        logger.info("Queried: "+name+", exist, authority: "+authty)
-        return { "status": 200, "exist": True, "authty": authty }
+        result = linebuild(search(certfile, callsign))
+        if not result:
+            logger.info("Queried "+callsign+", doesn't exist")
+            lock = False
+            return False
+        priv = result[2]
+        logger.info("Queried "+callsign+", exist, authority: "+priv)
+        lock = False
+        return int(priv)
 
-def create(name, passwd):
-    if query(name)['exist']:
-        logger.info("Try create: "+name+", name exist")
-        return { "status": 409, "msg": "User already exist" }
+def create(callsign, password):
+    global lock
+    while lock:
+        pass
+    if type(query(callsign)) == int:
+        logger.info("Try create "+callsign+", already exist")
+        return False
+    lock = True
     with open('cert.txt', 'a') as certfile:
-        certfile.write(name+" "+passwd+" 1\n")
-        logger.info("Try create: "+name+", success")
-        return { "status": 200, "msg": "Success created" }
+        certfile.write(linebuild([callsign, password, 1])+'\n')
+        logger.info("Created "+callsign)
+        lock = False
+        return True
 
-def changepwd(name, newpwd):
-    if not query(name)['exist']:
-        logger.info("Try change password")
-        return { "status": 404, "msg": "User not found" }
+# Modify user (e.g. password, priv......
+def modify(callsign, newpwd=None, newpriv=None):
+    global lock
+    while lock:
+        pass
+    if not newpwd and not type(newpriv) == int:
+        return False
+    if not type(query(callsign)) == int:
+        logger.info("Try change password, "+callsign+" doesn't exist")
+        return False
+    lock = True
     with open('cert.txt', 'r') as certfile:
-        cert = certfile.read()
-    with open('cert.txt', 'r') as certfile:
-        fullcont = search(certfile, name)
-    cont = fullcont.split(" ")
-    modcont = cont[0]+" "+newpwd+" "+cont[2]
-    modcert = cert.replace(fullcont, modcont)
-    with open('cert.txt', 'w') as certfile:
-        certfile.write(modcert)
-    return { "status": 200, "msg": "Success changed" }
+        oldline = search(certfile, callsign)
+        data = linebuild(oldline)
+        if newpwd:
+            data[1] = newpwd
+        if newpriv or newpriv == 0:
+            data[2] = newpriv
+        newline = linebuild(data)+'\n'
+        certfile.seek(0)
+        text = certfile.read()
+    with open('.newcert.txt', 'w') as certfile:
+        certfile.write(text.replace(oldline, newline))
+    os.remove('cert.txt')
+    os.rename('.newcert.txt', 'cert.txt')
+    lock = False
+    return True
 
-def changeauth(name, newauth):
-    if not query(name)['exist']:
-        return { "status": 404, "msg": "User not found" }
+def login(callsign, password):
+    global lock
+    while lock:
+        pass
+    if not type(query(callsign)) == int:
+        return False
+    lock = True
     with open('cert.txt', 'r') as certfile:
-        cert = certfile.read()
-    with open('cert.txt', 'r') as certfile:
-        fullcont = search(certfile, name)
-    cont = fullcont.split(" ")
-    modcont = cont[0]+" "+cont[1]+" "+newauth+"\n"
-    modcert = cert.replace(fullcont, modcont)
-    with open('cert.txt', 'w') as certfile:
-        certfile.write(modcert)
-    return { "status": 200, "msg": "Success changed" }
-
-def checkauth(name, password):
-    if not query(name)['exist']:
-        return { "status": 200, "right": "no" }
-    with open('cert.txt', 'r') as certfile:
-        rpassword = search(certfile, name).split()[1]        
-        if not password == rpassword:
-            return { "status": 200, "right": "no" }
+        line = linebuild(search(certfile, callsign))
+        rpassword = line[1]
+        if not int(line[2]):
+            return False
+        lock = False
+        if password == rpassword:
+            return True
         else:
-            return { "status": 200, "right": "yes" }
+            return False
         
 def whazzup():
     logger.info("Get whazzup")
-    with open('whazzup.txt', 'rb') as whazzupfile:
-        return whazzupfile.read()
+    try:
+        with open('whazzup.txt', 'r') as whazzupfile:
+            return whazzupfile.read()
+    except:
+        return '!whazzup.txt not exist or cannot read, please check'
 

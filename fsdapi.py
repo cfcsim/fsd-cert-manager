@@ -1,43 +1,85 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from markupsafe import escape
-from fsdcert import *
+import fsdcert
+import logging
 import json
 
 token = "Paste token here"
 
-app = Flask(__name__) 
-logger = app.logger
+app = Flask(__name__)
 
 @app.route('/whazzup.txt', methods=['GET']) 
 def whazzupfile():
     return whazzup()
 
-@app.route('/api/<path>', methods=['POST']) 
-def api(path):
-    path = escape(path)
+"""
+API:
+    Style: RESTful
+    Path: POST /api/<method>
+    Require param:
+        token, callsign (public)
+        password (method create & login)
+        newpwd, newpriv (method change, min param 1, max param 2)
+    'state' param explain:
+        See list 'msgs'.
+"""
+msgs = [
+    'OK',
+    'Invaild JSON body',
+    'Missing param',
+    'Token wrong',
+    'Callsign does not exist',
+    'Callsign already exist',
+    'API method not found'
+]
+
+def buildresult(state, moremsg='', params={}):
+    global msgs
+    params['state'] = state
+    if state > 0:
+        params['msg'] = msgs[state]+moremsg
+    return jsonify(params)
+
+@app.route('/api/<method>', methods=['POST']) 
+def api(method):
+    method = escape(method)
     try:
-        list = json.loads(request.get_data())
+        params = json.loads(request.get_data())
     except json.decoder.JSONDecodeError:
-        return { "status": 400, "error": "Bad Request: Only accept JSON body" }, 400
-    if not list.get("token") == token:
-        return { "status": 403, "error": "Forbidden: Token incorrect" }, 403
-    elif not "name" in list:
-        return { "status": 400, "error": "Bad Request: Missing name" }, 400
-    if path == "query":
-        result = query(list.get("name"))
-    elif path == "changeauth":
-        if not "auth" in list:
-            return { "status": 400, "error": "Bad Request: Missing auth" }, 400
-        result = changeauth(list.get("name"), list.get("auth"))
-    if 'result' in dir(): return result, result['status']
-    if not "password" in list:
-        return { "status": 400, "error": "Bad Request: Missing password" }, 400
-    if path == "create":
-        result = create(list.get("name"), list.get("password"))
-    elif path == "changepwd":
-        result = changepwd(list.get("name"), list.get("password"))
-    elif path == "auth":
-        result = checkauth(list.get("name"), list.get("password"))
+        return buildresult(1), 400
+    if not params.get("token") == token:
+        return buildresult(3), 403
+    elif not "callsign" in params:
+        return buildresult(2, moremsg=': callsign'), 400
+    if method == "query":
+        result = fsdcert.query(params.get('callsign'))
+        if type(result) == int:
+            return buildresult(0, params={'is_exist': True, 'priv': result})
+        else:
+            return buildresult(0, params={'is_exist': False}) 
+    elif method == "modify":
+        if not 'priv' in params and not 'password' in params:
+            return buildresult(2, moremsg=': priv or(and) password'), 400
+        if not fsdcert.modify(params.get('callsign'), newpriv=params.get('priv'), newpwd=params.get('password')):
+            return buildresult(4)
+        else:
+            return buildresult(0)
+    if not "password" in params and method in ['create', 'login']:
+        return buildresult(2, moremsg=': password'), 400
+    if method == "create":
+        if not fsdcert.create(params.get("callsign"), params.get("password")):
+            return buildresult(5)
+    elif method == "login":
+        if fsdcert.login(params.get("callsign"), params.get("password")):
+            return buildresult(0, params={'success': True})
+        else:
+            return buildresult(0, params={'success': False})
     else:
-        result = { "status": 404, "error": "Not Found: Invaild API method" }
-    return result, result['status']
+        return buildresult(6), 404
+    return buildresult(0)
+
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+fsdcert.logger = app.logger
