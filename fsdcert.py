@@ -107,7 +107,7 @@ def login(callsign, password):
             return False
         lock = False
         if password == rpassword:
-            return True
+            return int(line[2])
         else:
             return False
         

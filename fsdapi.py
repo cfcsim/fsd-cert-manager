@@ -70,8 +70,9 @@ def api(method):
         if not fsdcert.create(params.get("callsign"), params.get("password")):
             return buildresult(5)
     elif method == "login":
-        if fsdcert.login(params.get("callsign"), params.get("password")):
-            return buildresult(0, params={'success': True})
+        result = fsdcert.login(params.get("callsign"), params.get("password"))
+        if type(result) == int:
+            return buildresult(0, params={'success': True, 'priv': result})
         else:
             return buildresult(0, params={'success': False})
     else:
