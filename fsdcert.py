@@ -46,7 +46,7 @@ class create_cert:
         except:
             raise KeyError(callsign)
         for r in c:
-            return {'level': r[2]}
+            return {'level': r[2], 'password': r[1]}
         raise KeyError(callsign)
 
     def get(self, callsign):

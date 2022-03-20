@@ -86,9 +86,10 @@ def api_login():
         return {'message': 'Bad Request'}, 400
     if not params['callsign'] in cert:
         return {'message': 'Not Found'}, 404
-    rp = cert[params['callsign']]['password']
+    d = cert[params['callsign']]
+    rp = d['password']
     if rp == params['password'] or hashlib.new('md5', rp.encode()) == params['password']:
-        return {'message': 'OK'}
+        return {'message': 'OK', 'level': d['level']}
     return {'message': 'Forbidden'}, 403
 
 if __name__ != '__main__':
