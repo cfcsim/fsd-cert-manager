@@ -209,7 +209,7 @@
 
     $create_result = json_decode(getresponse("http://youserver:29343/api/create", $query, "application/json"), true);
     if ($create_result != null) {
-        if ($create_result['state'] == "0") {
+        if ($create_result['message'] == "OK") {
             alert("注册成功");
             return;
         } else {

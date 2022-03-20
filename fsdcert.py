@@ -1,121 +1,56 @@
-import os, re, time
+import sqlite3
 
-if not os.path.isfile('cert.txt'):
-    raise FileNotFoundError('There is not cert.txt, please check')
+class create_cert:
+    def __init__(self, dbname='cert.sqlitedb3', tablename='cert'):
+        self.__dbconn = sqlite3.connect(dbname)
+        self.__dbcurs = self.__dbconn.cursor()
+        self.__dbname = tablename
 
-class logger:
-    def info(msg):
-        print(msg)
+    def __del__(self):
+        self.__dbconn.commit()
+        self.__dbconn.close()
+        del self.__dbconn
+        del self.__dbcurs
+        del self.__dbname
+        del self
 
-lock = False # Processing lock
-
-'''
-Style of API: RESTful API
-'state' param explain:
-    1: OK
-    2: User already exist
-    3: User doesn't exist
-    4: Key wrong
-'''
-
-# Build line or convert line to list
-def linebuild(obj):
-    if isinstance(obj, list):
-        return obj[0]+' '+obj[1]+' '+str(obj[2])
-    elif isinstance(obj, str):
-        return obj.split()
-    return False
-
-# Search line by callsign
-def search(certfile, callsign):
-    lines = certfile.readlines()
-    for line in lines:
-        if line.split()[0] == callsign:
-            return line
-    return False
-
-# /userinfo?callsign=
-def query(callsign):
-    global lock
-    while lock:
-        pass
-    lock = True
-    with open('cert.txt', 'r') as certfile:
-        result = linebuild(search(certfile, callsign))
-        if not result:
-            logger.info("Queried "+callsign+", doesn't exist")
-            lock = False
+    def __contains__(self, callsign):
+        try:
+            c = self.__dbcurs.execute("SELECT * FROM %s WHERE callsign='%s';" % (self.__dbname, callsign))
+        except:
             return False
-        priv = result[2]
-        logger.info("Queried "+callsign+", exist, authority: "+priv)
-        lock = False
-        return int(priv)
-
-def create(callsign, password):
-    global lock
-    while lock:
-        pass
-    if type(query(callsign)) == int:
-        logger.info("Try create "+callsign+", already exist")
+        for _ in c:
+            return True
         return False
-    lock = True
-    with open('cert.txt', 'a') as certfile:
-        certfile.write(linebuild([callsign, password, 1])+'\n')
-        logger.info("Created "+callsign)
-        lock = False
-        return True
 
-# Modify user (e.g. password, priv......
-def modify(callsign, newpwd=None, newpriv=None):
-    global lock
-    while lock:
-        pass
-    if not newpwd and not type(newpriv) == int:
-        return False
-    if not type(query(callsign)) == int:
-        logger.info("Try change password, "+callsign+" doesn't exist")
-        return False
-    lock = True
-    with open('cert.txt', 'r') as certfile:
-        oldline = search(certfile, callsign)
-        data = linebuild(oldline)
-        if newpwd:
-            data[1] = newpwd
-        if newpriv or newpriv == 0:
-            data[2] = newpriv
-        newline = linebuild(data)+'\n'
-        certfile.seek(0)
-        text = certfile.read()
-    with open('.newcert.txt', 'w') as certfile:
-        certfile.write(text.replace(oldline, newline))
-    os.remove('cert.txt')
-    os.rename('.newcert.txt', 'cert.txt')
-    lock = False
-    return True
+    def __setitem__(self, callsign, pair):
+        if callsign in self:
+            if 'password' in pair:
+                self.__dbcurs.execute("UPDATE %s SET password = '%s' WHERE callsign = '%s'" % (self.__dbname, pair['password'], callsign))
+            if 'level' in pair:
+                self.__dbcurs.execute("UPDATE %s SET level = '%i' WHERE callsign = '%s'" % (self.__dbname, pair['level'], callsign))
+            self.__dbconn.commit()
+            return
+        self.__dbcurs.execute("INSERT INTO %s VALUES (?, ?, ?)" % self.__dbname, (callsign, pair['password'], pair['level']))
+        self.__dbconn.commit()
+    
+    def __delitem__(self, callsign):
+        if not callsign in self:
+            raise KeyError(callsign)
+        self.__dbcurs.execute("DELETE FROM %s WHERE callsign='%s'" % (self.__dbname, callsign))
+        self.__dbconn.commit()
 
-def login(callsign, password):
-    global lock
-    while lock:
-        pass
-    if not type(query(callsign)) == int:
-        return False
-    lock = True
-    with open('cert.txt', 'r') as certfile:
-        line = linebuild(search(certfile, callsign))
-        rpassword = line[1]
-        if not int(line[2]):
-            return False
-        lock = False
-        if password == rpassword:
-            return int(line[2])
-        else:
-            return False
-        
-def whazzup():
-    logger.info("Get whazzup")
-    try:
-        with open('whazzup.txt', 'r') as whazzupfile:
-            return whazzupfile.read()
-    except:
-        return '!whazzup.txt not exist or cannot read, please check'
+    def __getitem__(self, callsign):
+        try:
+            c = self.__dbcurs.execute("SELECT * FROM %s WHERE callsign='%s';" % (self.__dbname, callsign))
+        except:
+            raise KeyError(callsign)
+        for r in c:
+            return {'level': r[2]}
+        raise KeyError(callsign)
 
+    def get(self, callsign):
+        try:
+            return self[callsign]
+        except KeyError:
+            return None
