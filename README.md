@@ -2,9 +2,14 @@
 
 A simple python script for modify & vaild fsd's cert.txt (different servers)  
 
-# Caution
+# Using with [cfcsim's fsd](https://github.com/cfcsim/fsd)  
 
-This is can only collocation [cfcsim's fsd](https://github.com/cfcsim/fsd)  
+Remove `fsdcert.py` and rename `fsdcert.cfcsim.py` to `fsdcert.py`  
+(If you want support other version FSD, just send source code use email to me.)
+
+# Manually modify
+
+`num.py` Already
 
 # Use
 

@@ -32,13 +32,18 @@
     window.onload = function() {
         $("#reg").modal({show:true, backdrop: 'static', keyboard: false}); 
         $("#reg").modal('show');
-    }; 
+    };
+    /* 
     window.captexec = function (res) {
         if (res.ret === 0) {
             $("input[name='captTicket']").val(res.ticket);
             $("input[name='captStr']").val(res.randstr);
             $("#reg_form").submit();
         }
+    }
+    */
+    function submit() {
+        $("#reg_form").submit();
     }
     function gennum() {
         $("input[name='num']").val(parseInt(Math.random() * (9999 - 1000 + 1) + 1000));
@@ -69,7 +74,8 @@
             <div class="modal-footer">
 		<div class="btn-group">
                     <!-- See Tencent captcha docs (data-appid) -->
-                    <button id="TencentCaptcha" class="btn btn-secondary" data-appid="" data-cbfn="captexec" type="button">注册</button>
+                    <!-- button id="TencentCaptcha" class="btn btn-secondary" data-appid="" data-cbfn="captexec" type="button">注册</button -->
+                    <button class="btn btn-secondary" onclick="submit()">注册</button>
                 </div>
             </div>
                 </div>
@@ -95,7 +101,7 @@
         curl_close($ch);
         return $data;
     }
-    $token = "parse token here";
+    $token = "Wu21fJ0TpoDXbh95LRmCrqNP7in4ltU6";
     function alert($message) {
         echo "<script type='text/javascript'>";
         echo "alert('".$message."');";
@@ -104,6 +110,7 @@
     $post = $_POST;
     if (empty($post))
         return;
+    /*
     if ($post['captTicket'] == null) {
         alert("请完成人机验证");
         return;
@@ -111,6 +118,8 @@
         alert("请完成人机验证");
         return;
     }
+    */
+
     if ($post['num'] == null) {
         alert("必须填写呼号");
         return;
@@ -191,7 +200,7 @@
     unset($query['num']);
     $query = json_encode($query);
     # How to configure this please see Tencent captcha docs
-    # Or annotate line 195-208
+    /*
     $captcha = Array('Action'=>'DescribeCaptchaResult', 'AppSecretKey'=>'', 'CaptchaAppId'=>'', 'CaptchaType'=>'9', 'Nonce'=>rand(), 'Randstr'=>$post['captStr'], 'SecretId'=>'', 'Ticket'=>$post['captTicket'], 'Timestamp'=>time(), 'UserIp'=>$_SERVER['REMOTE_ADDR'], 'Version'=>'2019-07-22');
     $signStr = "POSTcaptcha.tencentcloudapi.com/?";
     foreach ( $captcha as $key => $value ) {
@@ -206,7 +215,7 @@
         alert("请重新进行人机验证");
         return;
     }
-
+    */
     $create_result = json_decode(getresponse("http://youserver:29343/api/create", $query, "application/json"), true);
     if ($create_result != null) {
         if ($create_result['message'] == "OK") {

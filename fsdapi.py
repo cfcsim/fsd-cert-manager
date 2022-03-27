@@ -1,20 +1,5 @@
-from flask import Flask, request, jsonify
-from markupsafe import escape
-import fsdcert
-import logging
-import hashlib
-import json
+"""fsdapi
 
-token = "Wu21fJ0TpoDXbh95LRmCrqNP7in4ltU6"
-
-app = Flask(__name__)
-cert = fsdcert.create_cert()
-
-@app.route('/whazzup.txt', methods=['GET']) 
-def whazzupfile():
-    return whazzup()
-
-"""
 API:
     Style: RESTful
     Path: /<method>
@@ -23,19 +8,33 @@ API:
         password (method create & login)
         newpwd, newlevel (method change, min param 1, max param 2)
 """
-def get_params(body, required_params=[]):
-    global token
-    required_params.append('token')
+import logging
+import hashlib
+import json
+import sys
+import os
+from flask import Flask, request, send_file
+import fsdcert
+
+token = "Wu21fJ0TpoDXbh95LRmCrqNP7in4ltU6"
+
+app = Flask(__name__)
+cert = fsdcert.cert()
+
+@app.route('/whazzup.txt', methods=['GET'])
+def whazzupfile():
+    return send_file(os.path.join(sys.path[0], 'whazzup.txt'))
+
+def get_params(body, required_params=None):
     try:
         params = json.loads(body)
-    except:
+    except json.decoder.JSONDecodeError:
         return None
-    for param in required_params:
-        if not param in params:
-            app.logger.info("Miss param "+param)
-            return None
-    if not params['token'] == token:
-        app.logger.info("Error token "+params['token'])
+    if required_params:
+        for param in required_params:
+            if not param in params:
+                return None
+    if not params.get('token') == token:
         return None
     return params
 
@@ -65,8 +64,10 @@ def api_modify():
     if not params['callsign'] in cert:
         return {'message': 'Not Found'}, 404
     newcert = {}
-    if 'password' in params: newcert['password'] = params['password']
-    if 'level' in params: newcert['level'] = params['level']
+    if 'password' in params:
+        newcert['password'] = params['password']
+    if 'level' in params:
+        newcert['level'] = params['level']
     cert[params['callsign']] = newcert
     return {'message': 'OK'}
 
@@ -86,10 +87,10 @@ def api_login():
         return {'message': 'Bad Request'}, 400
     if not params['callsign'] in cert:
         return {'message': 'Not Found'}, 404
-    d = cert[params['callsign']]
-    rp = d['password']
-    if rp == params['password'] or hashlib.new('md5', rp.encode()) == params['password']:
-        return {'message': 'OK', 'level': d['level']}
+    cert_line = cert[params['callsign']]
+    right_password = cert_line['password']
+    if right_password == params['password'] or hashlib.new('md5', right_password.encode()) == params['password']:
+        return {'message': 'OK', 'level': cert_line['level']}
     return {'message': 'Forbidden'}, 403
 
 if __name__ != '__main__':
