@@ -89,7 +89,7 @@ def api_login():
         return {'message': 'Not Found'}, 404
     cert_line = cert[params['callsign']]
     right_password = cert_line['password']
-    if right_password == params['password'] or hashlib.new('md5', right_password.encode()) == params['password']:
+    if right_password == params['password'] or hashlib.new('md5', right_password.encode()).hexdigest() == params['password']:
         return {'message': 'OK', 'level': cert_line['level']}
     return {'message': 'Forbidden'}, 403
 
